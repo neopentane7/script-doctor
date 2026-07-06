@@ -32,6 +32,7 @@ def generate_report(
     timestamp: str,
     output_dir: str = ".",
     save: bool = True,
+    score_threshold: int = 9,
 ) -> str:
     """Generate the HTML report.
 
@@ -219,7 +220,7 @@ body{{background:#0a0c12;color:#e2e8f0;font-family:'Inter',sans-serif;min-height
       <span class="meta-chip">Generated <strong>{timestamp}</strong></span>
       <span class="meta-chip">Iterations <strong>{len(iteration_history)}</strong></span>
       <span class="meta-chip">Final Score <strong style="color:{_score_color(final_score)}">{final_score}/10</strong></span>
-      <span class="meta-chip">Exit Condition <strong>{"Score &ge; 8" if final_score >= 8 else "Iteration cap"}</strong></span>
+      <span class="meta-chip">Exit Condition <strong>{f"Score &ge; {score_threshold}" if final_score >= score_threshold else "Iteration cap / converged"}</strong></span>
     </div>
     <div class="prompt-box">{prompt_escaped}</div>
   </div>
@@ -310,8 +311,8 @@ const lineData = {{
     fill: true,
     tension: 0.3
   }}, {{
-    label: 'Threshold (8)',
-    data: Array({len(iteration_history)}).fill(8),
+    label: 'Threshold ({score_threshold})',
+    data: Array({len(iteration_history)}).fill({score_threshold}),
     borderColor: 'rgba(34,197,94,0.5)',
     borderWidth: 1.5,
     borderDash: [6,4],

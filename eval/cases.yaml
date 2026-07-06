@@ -1,0 +1,43 @@
+# ──────────────────────────────────────────────────────────────
+#  Script Doctor — regression cases
+# ──────────────────────────────────────────────────────────────
+#  Expectations are RANGES, not exact values: LLM outputs vary run to run, so
+#  the harness is designed to catch *drift* (scores collapsing, the loop failing
+#  to engage or blowing past the cap), not natural variance. Tighten the bounds
+#  once you have a few baseline runs to calibrate against.
+#
+#  Supported expectation keys (all optional):
+#    min_final_score / max_final_score   — bounds on the accepted overall score
+#    min_iterations  / max_iterations    — bounds on Writer <-> Critic cycles
+#    require_converged: true             — final score must reach SCORE_THRESHOLD
+# ──────────────────────────────────────────────────────────────
+
+- id: vampire_hunter
+  prompt: >
+    A centuries-old vampire and a grizzled monster hunter are forced into a
+    cathedral's basement to hide from an approaching mob. The holy ground is
+    slowly draining the vampire's strength, and the hunter must decide whether
+    to protect his ancient enemy or let the mob do his job for him.
+  expect:
+    min_final_score: 7
+    min_iterations: 1
+    max_iterations: 5
+
+- id: elevator_strangers
+  prompt: >
+    Three strangers stuck in a broken elevator: a divorce lawyer finalizing her
+    own divorce, a mime who has taken a vow of silence, and a motivational
+    speaker who cannot stop coaching people.
+  expect:
+    min_final_score: 7
+    min_iterations: 1
+    max_iterations: 5
+
+- id: heist_setup
+  prompt: >
+    Two thieves in a getaway car realize the job was a setup. One of them tipped
+    off the police to save themselves — and both of them already know it.
+  expect:
+    min_final_score: 7
+    min_iterations: 1
+    max_iterations: 5

@@ -17,6 +17,7 @@ from agents.outliner import outliner_node
 from agents.writer import writer_node
 from agents.critic import critic_node
 from report.generator import generate_report
+from utils.tracing import configure_tracing
 
 # Load environment variables
 load_dotenv(override=True)
@@ -41,7 +42,9 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 RUNS_DIR = str(Path(__file__).parent / "runs")
 
 # ── Quality threshold ────────────────────────────────────────────────────────
-SCORE_THRESHOLD = 8      # Script is accepted when overall score >= this value
+# 9/10 is deliberately demanding: paired with the strict critic rubric, a first
+# draft won't clear it, so the Writer ↔ Critic loop actually engages and refines.
+SCORE_THRESHOLD = 9      # Script is accepted when overall score >= this value
 MAX_ITERATIONS  = 5      # Hard cap on Writer ↔ Critic revision cycles
 MAX_REOUTLINES  = 2      # Hard cap on structural (beat-sheet) rebuilds per run
 
@@ -160,6 +163,19 @@ def run_pipeline(
     if not os.environ.get("GOOGLE_API_KEY"):
         raise RuntimeError("GOOGLE_API_KEY environment variable is not set.")
 
+    # The critic defaults to Groq (a free, stricter, heterogeneous judge). If that
+    # provider is active, its key must be present too — fail early with guidance.
+    if os.getenv("CRITIC_PROVIDER", "groq").lower() == "groq" and not os.environ.get("GROQ_API_KEY"):
+        raise RuntimeError(
+            "GROQ_API_KEY is not set, but the critic uses Groq by default. "
+            "Get a free key at https://console.groq.com/keys and add it to .env, "
+            "or set CRITIC_PROVIDER=google to run the critic on Gemini instead."
+        )
+
+    # Opt-in observability: if LangSmith env vars are set, every agent call is
+    # auto-traced (tokens, latency, cost) under the project name.
+    configure_tracing()
+
     if on_node:
         on_node("init", "Initializing Vector DB...")
     create_vectorstore()
@@ -241,6 +257,7 @@ def run_agents():
         final_score=final_state["score"],
         timestamp=timestamp,
         output_dir=RUNS_DIR,
+        score_threshold=SCORE_THRESHOLD,
     )
     logger.info("HTML report saved: %s", report_file)
     logger.info("=" * 60)

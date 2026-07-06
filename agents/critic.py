@@ -1,16 +1,39 @@
+import os
 import logging
 from pydantic import BaseModel, Field, model_validator
 from typing import List
+from langchain_core.prompts import ChatPromptTemplate
+from utils.llm import get_llm, get_groq_llm, DEFAULT_GROQ_MODEL
+from utils.retry import invoke_with_retry
+
+logger = logging.getLogger(__name__)
 
 # Bound how much prior critique the critic re-reads each cycle. Mirrors the
 # writer's memory buffer so the critic prompt does not grow unboundedly across
 # iterations (which previously inflated latency and cost late in the loop).
 CRITIC_HISTORY_WINDOW = 2
-from langchain_core.prompts import ChatPromptTemplate
-from utils.llm import get_llm
-from utils.retry import invoke_with_retry
 
-logger = logging.getLogger(__name__)
+# The critic defaults to a DIFFERENT model family than the Gemini writer (Groq's
+# free-tier Llama 3.3 70B). A heterogeneous judge reduces the self-preference
+# bias you get when one model grades its own output, and — being stricter than
+# a lenient Flash critic — it actually drives the revision loop.
+#
+# All of this is resolved from the environment at call time (after .env loads):
+#   CRITIC_PROVIDER = "groq" (default) | "google"
+#   CRITIC_MODEL    = provider-specific override (optional)
+_DEFAULT_CRITIC_PROVIDER = "groq"
+_DEFAULT_GOOGLE_CRITIC_MODEL = "gemini-2.5-flash"
+
+
+def _get_critic_llm(temperature: float = 0.15):
+    """Build the critic LLM from env config, returning (llm, label)."""
+    provider = os.getenv("CRITIC_PROVIDER", _DEFAULT_CRITIC_PROVIDER).lower()
+    if provider == "groq":
+        model = os.getenv("CRITIC_MODEL", DEFAULT_GROQ_MODEL)
+        return get_groq_llm(temperature=temperature, model=model), f"groq:{model}"
+    # Fallback: keep the whole pipeline on Google if explicitly requested.
+    model = os.getenv("CRITIC_MODEL", _DEFAULT_GOOGLE_CRITIC_MODEL)
+    return get_llm(temperature=temperature, model=model), f"google:{model}"
 
 
 class ScriptEvaluation(BaseModel):
@@ -115,9 +138,9 @@ def critic_node(state: dict) -> dict:
     history = state.get("history", [])
 
     logger.info("Evaluating draft (iteration %d)...", iteration_count + 1)
-    structured_llm = get_llm(
-        temperature=0.15, model="gemini-2.5-pro"
-    ).with_structured_output(ScriptEvaluation)
+    critic_llm, critic_label = _get_critic_llm(temperature=0.15)
+    logger.info("Critic model: %s", critic_label)
+    structured_llm = critic_llm.with_structured_output(ScriptEvaluation)
 
     system_msg = (
         "You are a senior script doctor and industry critic with 20 years of experience "
@@ -125,13 +148,24 @@ def critic_node(state: dict) -> dict:
         "dialogue, pacing, character consistency (relative to the original prompt's archetypes), "
         "thematic resonance (relative to whatever themes and emotional register the prompt implies), "
         "and dramatic tension.\n\n"
-        "Scoring principles:\n"
-        "- 1-4: Significant structural or craft problems\n"
-        "- 5-6: Competent but unremarkable\n"
-        "- 7: Good -- publishable quality with minor polish needed\n"
-        "- 8-9: Excellent -- strong voice, clear vision, executes the prompt fully\n"
-        "- 10: Near-flawless -- reserved for exceptional work\n\n"
-        "Be honest and exacting. A script cannot score 8+ unless it genuinely earns it.\n\n"
+        "Scoring principles (calibrate STRICTLY — most drafts belong in the 5-7 band):\n"
+        "- 1-3: Broken — craft or structural failures a reader notices immediately\n"
+        "- 4-5: Amateur — grammatical prose but flat characters, on-the-nose dialogue, or slack pacing\n"
+        "- 6: Functional first-draft work — the scene works but has clear, nameable weaknesses\n"
+        "- 7: Good — professional polish; only minor issues remain\n"
+        "- 8: Excellent — you would be proud to submit this; nothing distracts\n"
+        "- 9: Exceptional — distinctive voice, not a wasted line, lingers after reading\n"
+        "- 10: Flawless — the best possible version of this scene\n\n"
+        "Calibration rules (enforce these — do NOT be agreeable):\n"
+        "- Default to skepticism. A FIRST draft almost never exceeds 6-7; treat 8+ as something\n"
+        "  the writer must EARN through revision, not a reward for competence.\n"
+        "- Per dimension: if you can name a concrete, specific weakness in that dimension, it has\n"
+        "  NOT yet reached 8 — score it 7 or below until that weakness is actually fixed.\n"
+        "- You must list 3-5 required improvements. A draft with real improvements still pending\n"
+        "  is by definition not yet exceptional — reserve an overall 9-10 for a draft you would\n"
+        "  change essentially nothing about.\n"
+        "- Never inflate a score to be encouraging. Withholding approval is how you force the\n"
+        "  revision that makes the scene great. As dimensions genuinely improve, raise their scores.\n\n"
         "Crucially, READ THE WRITER'S DEFENSE NOTES. If the writer makes a compelling creative "
         "argument for ignoring a past note or taking a specific direction, consider it valid and grade accordingly.\n\n"
         "Finally, diagnose the LEVEL of the problem. If the weaknesses are structural — the "

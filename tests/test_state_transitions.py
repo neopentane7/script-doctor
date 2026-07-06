@@ -105,8 +105,9 @@ class TestConstants:
         assert 1 <= MAX_ITERATIONS <= 20
 
     def test_threshold_consistent_with_rubric(self):
-        """Threshold should be 8 — the rubric says 8-9 is 'Excellent'."""
-        assert SCORE_THRESHOLD == 8
+        """Threshold should be 9 — the rubric reserves 9 for 'Exceptional' work,
+        which (with the strict critic) forces the refinement loop to engage."""
+        assert SCORE_THRESHOLD == 9
 
 
 # ── Graph structure ───────────────────────────────────────────────────────────

@@ -24,7 +24,7 @@ sys.path.insert(0, str(ROOT))
 from dotenv import load_dotenv
 load_dotenv(ROOT / ".env", override=True)
 
-from main import run_pipeline, RUNS_DIR
+from main import run_pipeline, RUNS_DIR, SCORE_THRESHOLD
 from report.generator import generate_report
 
 logger = logging.getLogger(__name__)
@@ -124,6 +124,7 @@ def start_run():
                 timestamp=timestamp,
                 output_dir=str(RUNS_DIR),
                 save=True,
+                score_threshold=SCORE_THRESHOLD,
             )
             html_str = open(saved_path, encoding="utf-8").read()
 

@@ -1,3 +1,4 @@
+import os
 import re
 import logging
 from langchain_core.prompts import ChatPromptTemplate
@@ -6,6 +7,11 @@ from utils.llm import get_llm
 from utils.retry import invoke_with_retry
 
 logger = logging.getLogger(__name__)
+
+# Model is resolved from the environment at call time (after .env is loaded) so
+# it can be overridden without code changes. Defaults to Flash, which works on
+# the free tier; set OUTLINER_MODEL=gemini-2.5-pro when billing is enabled.
+_DEFAULT_OUTLINER_MODEL = "gemini-2.5-flash"
 
 
 def _strip_markdown_noise(text: str) -> str:
@@ -40,7 +46,8 @@ def outliner_node(state: dict) -> dict:
     docs = get_similar_dialogues(prompt_text, k=3)
     rag_context = "\n\n---\n\n".join(docs)
 
-    llm = get_llm(temperature=0.6, model="gemini-2.5-pro")
+    model = os.getenv("OUTLINER_MODEL", _DEFAULT_OUTLINER_MODEL)
+    llm = get_llm(temperature=0.6, model=model)
 
     is_restructure = bool(prev_outline and critique)
 
