@@ -4,11 +4,14 @@
     <strong>Multi-Agent AI Screenplay Pipeline — Autonomous Writer-Critic Loop with RAG Grounding & Structured Evaluation</strong>
   </p>
   <p align="center">
+    <a href="https://github.com/neopentane7/script-doctor/actions/workflows/ci.yml"><img src="https://github.com/neopentane7/script-doctor/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
     <img src="https://img.shields.io/badge/Python-3.11+-3776ab?style=flat-square&logo=python&logoColor=white" alt="Python">
     <img src="https://img.shields.io/badge/LangGraph-0.2+-1a1a2e?style=flat-square&logo=langchain&logoColor=white" alt="LangGraph">
-    <img src="https://img.shields.io/badge/Gemini_2.5_Flash_%2F_Pro-4285F4?style=flat-square&logo=google&logoColor=white" alt="Gemini">
+    <img src="https://img.shields.io/badge/Gemini_2.5_Flash-4285F4?style=flat-square&logo=google&logoColor=white" alt="Gemini">
+    <img src="https://img.shields.io/badge/Groq_Llama_3.3_70B-F55036?style=flat-square" alt="Groq">
     <img src="https://img.shields.io/badge/ChromaDB-Vector_Store-FF6F00?style=flat-square" alt="ChromaDB">
     <img src="https://img.shields.io/badge/Flask-SSE_Streaming-000000?style=flat-square&logo=flask&logoColor=white" alt="Flask">
+    <img src="https://img.shields.io/badge/License-MIT-22c55e?style=flat-square" alt="License: MIT">
   </p>
 </p>
 
@@ -93,7 +96,7 @@ graph LR
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/YOUR_USERNAME/script-doctor.git
+git clone https://github.com/neopentane7/script-doctor.git
 cd script-doctor
 
 # 2. Create and activate a virtual environment
