@@ -1,0 +1,29 @@
+# Core LangGraph + LangChain
+langgraph>=0.2.0
+langchain-core>=0.3.0
+langchain-google-genai>=2.0.0
+langchain-community>=0.3.0
+langchain-chroma>=0.1.0
+langchain-huggingface>=0.1.0
+langchain-text-splitters>=0.3.0
+
+# Vector store
+chromadb>=0.5.0
+
+# Embeddings (sentence-transformers backend)
+sentence-transformers>=3.0.0
+
+# Google Generative AI SDK
+google-generativeai>=0.8.0
+
+# Environment config
+python-dotenv>=1.0.0
+
+# Pydantic (used by critic rubric)
+pydantic>=2.0.0
+
+# Web UI server
+flask>=3.0.0
+
+# Testing — install dev dependencies separately:
+#   pip install -r requirements-dev.txt

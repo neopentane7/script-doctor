@@ -1,0 +1,472 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Script Doctor — AI Screenplay Generator</title>
+  <meta name="description" content="Agentic AI pipeline that writes and iteratively refines cinematic screenplay scenes using LangGraph, Gemini 2.5 Flash, and RAG." />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    /* ── Reset & Tokens ────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg:        #080a10;
+      --surface:   #0f1219;
+      --border:    rgba(255,255,255,0.08);
+      --border-hi: rgba(124,58,237,0.4);
+      --purple:    #7c3aed;
+      --cyan:      #06b6d4;
+      --green:     #22c55e;
+      --red:       #ef4444;
+      --text:      #e2e8f0;
+      --muted:     #64748b;
+      --subtle:    #94a3b8;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ── Animated background grid ──────────────────────────────────── */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(124,58,237,0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(124,58,237,0.03) 1px, transparent 1px);
+      background-size: 40px 40px;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* ── Layout ────────────────────────────────────────────────────── */
+    .page { position: relative; z-index: 1; max-width: 900px; margin: 0 auto; padding: 3rem 1.5rem 6rem; }
+
+    /* ── Hero ──────────────────────────────────────────────────────── */
+    .hero { text-align: center; margin-bottom: 3rem; }
+
+    .hero-badge {
+      display: inline-flex; align-items: center; gap: .5rem;
+      background: rgba(124,58,237,0.12); border: 1px solid rgba(124,58,237,0.3);
+      border-radius: 20px; padding: .35rem 1rem; font-size: .78rem;
+      color: #a78bfa; font-weight: 600; letter-spacing: .04em;
+      text-transform: uppercase; margin-bottom: 1.5rem;
+    }
+    .hero-badge .dot {
+      width: 6px; height: 6px; border-radius: 50%;
+      background: var(--purple);
+      box-shadow: 0 0 6px var(--purple);
+      animation: pulse-dot 2s ease-in-out infinite;
+    }
+    @keyframes pulse-dot {
+      0%,100% { opacity: 1; transform: scale(1); }
+      50%      { opacity: .5; transform: scale(1.4); }
+    }
+
+    .hero h1 {
+      font-size: clamp(2.4rem, 6vw, 4rem);
+      font-weight: 800;
+      line-height: 1.1;
+      background: linear-gradient(135deg, #c4b5fd 0%, #7c3aed 40%, #06b6d4 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      margin-bottom: 1rem;
+    }
+    .hero p {
+      font-size: 1.05rem; color: var(--subtle); max-width: 540px;
+      margin: 0 auto 2rem; line-height: 1.65;
+    }
+
+    /* Pipeline pills */
+    .pipeline-pills {
+      display: flex; align-items: center; justify-content: center;
+      gap: .5rem; flex-wrap: wrap; margin-bottom: 2.5rem;
+    }
+    .pill {
+      display: flex; align-items: center; gap: .4rem;
+      background: rgba(255,255,255,0.04); border: 1px solid var(--border);
+      border-radius: 8px; padding: .4rem .85rem; font-size: .8rem; color: var(--subtle);
+    }
+    .pill-icon { font-size: 1rem; }
+    .pill-arrow { color: var(--muted); font-size: .9rem; }
+    .pill-loop { color: var(--purple); font-size: .7rem; display: block; }
+
+    /* ── Input card ────────────────────────────────────────────────── */
+    .input-card {
+      background: rgba(15,18,25,0.8);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 2rem 2rem 1.5rem;
+      backdrop-filter: blur(12px);
+      transition: border-color .3s;
+      margin-bottom: 2rem;
+    }
+    .input-card:focus-within { border-color: var(--border-hi); }
+
+    .input-label {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: .75rem;
+    }
+    .input-label span { font-size: .82rem; font-weight: 600; color: var(--subtle); letter-spacing: .04em; text-transform: uppercase; }
+    .char-count { font-size: .78rem; color: var(--muted); }
+
+    textarea#prompt {
+      width: 100%; min-height: 130px;
+      background: rgba(0,0,0,0.3);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: .95rem; line-height: 1.65;
+      padding: 1rem 1.1rem;
+      resize: vertical;
+      outline: none;
+      transition: border-color .25s, box-shadow .25s;
+    }
+    textarea#prompt::placeholder { color: var(--muted); }
+    textarea#prompt:focus {
+      border-color: rgba(124,58,237,0.5);
+      box-shadow: 0 0 0 3px rgba(124,58,237,0.12);
+    }
+
+    /* Example prompts */
+    .examples { margin-top: 1rem; }
+    .examples-label { font-size: .75rem; color: var(--muted); margin-bottom: .5rem; }
+    .example-chips { display: flex; flex-wrap: wrap; gap: .5rem; }
+    .chip {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 20px; padding: .3rem .85rem;
+      font-size: .78rem; color: var(--subtle);
+      cursor: pointer; transition: all .2s;
+      max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
+    .chip:hover {
+      background: rgba(124,58,237,0.1);
+      border-color: rgba(124,58,237,0.35);
+      color: #a78bfa;
+    }
+
+    /* Run button */
+    .btn-row { display: flex; justify-content: flex-end; margin-top: 1.25rem; }
+    #run-btn {
+      display: inline-flex; align-items: center; gap: .6rem;
+      background: linear-gradient(135deg, var(--purple), #5b21b6);
+      border: none; border-radius: 12px;
+      padding: .75rem 2rem; font-size: .95rem; font-weight: 600;
+      color: #fff; cursor: pointer;
+      box-shadow: 0 4px 20px rgba(124,58,237,0.35);
+      transition: transform .2s, box-shadow .2s, opacity .2s;
+      position: relative; overflow: hidden;
+    }
+    #run-btn:disabled { opacity: .6; cursor: not-allowed; }
+    #run-btn:not(:disabled):hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 28px rgba(124,58,237,0.5);
+    }
+    #run-btn:not(:disabled):active { transform: translateY(0); }
+    #run-btn .btn-icon { font-size: 1.1rem; }
+
+    /* ── Progress panel ────────────────────────────────────────────── */
+    #progress-panel {
+      display: none;
+      background: rgba(15,18,25,0.9);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 1.5rem 2rem;
+      margin-bottom: 2rem;
+    }
+    .progress-header {
+      display: flex; align-items: center; gap: 1rem; margin-bottom: 1.2rem;
+    }
+    .spinner {
+      width: 22px; height: 22px; border-radius: 50%;
+      border: 2px solid rgba(124,58,237,0.2);
+      border-top-color: var(--purple);
+      animation: spin .8s linear infinite;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .progress-title { font-size: .9rem; font-weight: 600; color: var(--text); }
+
+    #progress-log {
+      display: flex; flex-direction: column; gap: .5rem;
+      max-height: 280px; overflow-y: auto;
+    }
+    .log-entry {
+      display: flex; align-items: flex-start; gap: .7rem;
+      font-size: .84rem; line-height: 1.5;
+      animation: fade-in .3s ease;
+    }
+    @keyframes fade-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+    .log-entry .log-icon { flex-shrink: 0; font-size: 1rem; margin-top: .05rem; }
+    .log-entry .log-msg { color: var(--subtle); }
+    .log-entry.done-entry .log-msg { color: var(--green); font-weight: 600; }
+    .log-entry.error-entry .log-msg { color: var(--red); }
+
+    /* ── Report container ──────────────────────────────────────────── */
+    #report-container { display: none; }
+    .report-header-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 1rem; flex-wrap: wrap; gap: .75rem;
+    }
+    .report-title-text { font-size: 1rem; font-weight: 700; color: var(--text); }
+    .report-meta-pills { display: flex; gap: .5rem; flex-wrap: wrap; }
+    .rmeta-pill {
+      background: rgba(255,255,255,0.05); border: 1px solid var(--border);
+      border-radius: 8px; padding: .25rem .7rem; font-size: .78rem; color: var(--subtle);
+    }
+    .rmeta-pill strong { color: var(--text); }
+
+    #report-frame {
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: transparent;
+      min-height: 600px;
+    }
+
+    /* ── Footer ────────────────────────────────────────────────────── */
+    footer {
+      text-align: center; font-size: .78rem; color: var(--muted);
+      margin-top: 4rem; padding-bottom: 2rem;
+    }
+    footer a { color: var(--purple); text-decoration: none; }
+  </style>
+</head>
+<body>
+<div class="page">
+
+  <!-- ── Hero ── -->
+  <header class="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Multi-Agent LangGraph Pipeline
+    </div>
+    <h1>Script Doctor</h1>
+    <p>Enter any scene premise. Three AI agents — Outliner, Writer, and Critic — will collaborate in an autonomous loop until your screenplay scene meets professional-grade standards.</p>
+
+    <div class="pipeline-pills">
+      <div class="pill"><span class="pill-icon">📡</span> RAG Context</div>
+      <span class="pill-arrow">→</span>
+      <div class="pill"><span class="pill-icon">🗺️</span> Outliner</div>
+      <span class="pill-arrow">→</span>
+      <div class="pill"><span class="pill-icon">✍️</span> Writer<span class="pill-loop">↺ + Defense Notes</span></div>
+      <span class="pill-arrow">→</span>
+      <div class="pill"><span class="pill-icon">🔍</span> Critic<span class="pill-loop">loops if score &lt; 8</span></div>
+      <span class="pill-arrow">→</span>
+      <div class="pill"><span class="pill-icon">🎬</span> Final Script</div>
+    </div>
+  </header>
+
+  <!-- ── Input Card ── -->
+  <div class="input-card">
+    <div class="input-label">
+      <span>Scene Premise</span>
+      <span class="char-count" id="char-count">0 / 600</span>
+    </div>
+    <textarea
+      id="prompt"
+      maxlength="600"
+      placeholder="Describe your scene — characters, setting, conflict, and stakes. The more specific, the better the output..."></textarea>
+
+    <div class="examples">
+      <div class="examples-label">✨ Try an example:</div>
+      <div class="example-chips">
+        <div class="chip" onclick="fillPrompt(this)">A centuries-old vampire and a grizzled monster hunter are forced into a cathedral's basement to hide from an approaching mob. The holy ground is slowly draining the vampire's strength.</div>
+        <div class="chip" onclick="fillPrompt(this)">A high-stakes magical heist gone wrong. A master illusionist and a gruff dwarf safe-cracker are trapped inside the royal vault as anti-magic alarms blare.</div>
+        <div class="chip" onclick="fillPrompt(this)">A tense standoff in a neon-lit cyberpunk noodle bar. Two rival corporate assassins realize they've both been double-crossed by the same employer.</div>
+      </div>
+    </div>
+
+    <div class="btn-row">
+      <button id="run-btn" onclick="runPipeline()">
+        <span class="btn-icon">🚀</span>
+        Run Script Doctor
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Progress Panel ── -->
+  <div id="progress-panel">
+    <div class="progress-header">
+      <div class="spinner" id="spinner"></div>
+      <span class="progress-title">Agents are working on your scene…</span>
+    </div>
+    <div id="progress-log"></div>
+  </div>
+
+  <!-- ── Report ── -->
+  <div id="report-container">
+    <div class="report-header-bar">
+      <span class="report-title-text">📊 Run Report</span>
+      <div class="report-meta-pills" id="report-meta-pills"></div>
+    </div>
+    <iframe id="report-frame" frameborder="0" scrolling="yes"></iframe>
+  </div>
+
+</div>
+
+<footer>
+  Script Doctor &mdash; Powered by
+  <a href="https://deepmind.google/" target="_blank">Google Gemini 2.5 Flash</a> ·
+  <a href="https://www.langchain.com/langgraph" target="_blank">LangGraph</a> ·
+  <a href="https://www.trychroma.com/" target="_blank">ChromaDB</a>
+</footer>
+
+<script>
+  /* ── Char counter ── */
+  const promptEl = document.getElementById('prompt');
+  const charCount = document.getElementById('char-count');
+  promptEl.addEventListener('input', () => {
+    charCount.textContent = `${promptEl.value.length} / 600`;
+  });
+
+  /* ── Fill prompt from chip ── */
+  function fillPrompt(el) {
+    promptEl.value = el.textContent.trim();
+    charCount.textContent = `${promptEl.value.length} / 600`;
+    promptEl.focus();
+  }
+
+  /* ── Node label map ── */
+  const NODE_LABELS = {
+    init:     { icon: '⚙️',  label: 'Initializing Vector DB & embeddings…' },
+    ready:    { icon: '✅',  label: 'Pipeline ready. Starting agents…' },
+    outliner: { icon: '🗺️',  label: 'Outliner: structuring beat sheet…' },
+    writer:   { icon: '✍️',  label: 'Writer: drafting / revising screenplay…' },
+    critic:   { icon: '🔍',  label: 'Critic: evaluating draft against rubric…' },
+  };
+
+  function addLog(node, message, cls = '') {
+    const log = document.getElementById('progress-log');
+    const info = NODE_LABELS[node] || { icon: '💬', label: message };
+    const entry = document.createElement('div');
+    entry.className = `log-entry ${cls}`;
+    entry.innerHTML = `
+      <span class="log-icon">${info.icon}</span>
+      <span class="log-msg">${info.label}</span>`;
+    log.appendChild(entry);
+    log.scrollTop = log.scrollHeight;
+  }
+
+  /* ── Main run function ── */
+  async function runPipeline() {
+    const prompt = promptEl.value.trim();
+    if (!prompt) {
+      promptEl.focus();
+      promptEl.style.borderColor = '#ef4444';
+      setTimeout(() => promptEl.style.borderColor = '', 1200);
+      return;
+    }
+
+    /* Reset UI */
+    const btn = document.getElementById('run-btn');
+    btn.disabled = true;
+    btn.innerHTML = `<span class="btn-icon">⏳</span> Running…`;
+
+    document.getElementById('progress-log').innerHTML = '';
+    document.getElementById('progress-panel').style.display = 'block';
+    document.getElementById('report-container').style.display = 'none';
+    document.getElementById('spinner').style.display = 'block';
+    window.scrollTo({ top: document.getElementById('progress-panel').offsetTop - 20, behavior: 'smooth' });
+
+    /* Step 1: POST /run to start the job */
+    let job_id;
+    try {
+      const resp = await fetch('/run', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) {
+        addLog('error', data.error || 'Server error.', 'error-entry');
+        resetBtn();
+        return;
+      }
+      job_id = data.job_id;
+    } catch (err) {
+      addLog('error', `Network error: ${err.message}`, 'error-entry');
+      resetBtn();
+      return;
+    }
+
+    /* Step 2: Open SSE stream */
+    const evtSource = new EventSource(`/stream/${job_id}`);
+
+    evtSource.onmessage = (e) => {
+      const msg = JSON.parse(e.data);
+
+      if (msg.event === 'progress') {
+        addLog(msg.node, msg.message);
+
+      } else if (msg.event === 'done') {
+        evtSource.close();
+        document.getElementById('spinner').style.display = 'none';
+        addLog('done', `✅ Complete! Score: ${msg.score}/10 — ${msg.iterations} iteration(s). Saved as ${msg.saved_as}`, 'done-entry');
+        renderReport(msg.html, msg.score, msg.iterations, msg.saved_as);
+        resetBtn();
+
+      } else if (msg.event === 'error') {
+        evtSource.close();
+        addLog('error', `❌ Error: ${msg.message}`, 'error-entry');
+        resetBtn();
+      }
+    };
+
+    evtSource.onerror = () => {
+      evtSource.close();
+      addLog('error', '❌ Connection lost. Check the server terminal for details.', 'error-entry');
+      resetBtn();
+    };
+  }
+
+  function resetBtn() {
+    const btn = document.getElementById('run-btn');
+    btn.disabled = false;
+    btn.innerHTML = `<span class="btn-icon">🚀</span> Run Script Doctor`;
+  }
+
+  function renderReport(html, score, iterations, savedAs) {
+    /* Inject report HTML into iframe via blob URL so scripts execute */
+    const blob = new Blob([html], { type: 'text/html' });
+    const url  = URL.createObjectURL(blob);
+    const frame = document.getElementById('report-frame');
+    frame.src = url;
+
+    /* Auto-size iframe once content loads */
+    frame.onload = () => {
+      try {
+        const h = frame.contentDocument.documentElement.scrollHeight;
+        frame.style.height = Math.max(h + 32, 600) + 'px';
+      } catch(_) {
+        frame.style.height = '900px';
+      }
+      URL.revokeObjectURL(url);
+    };
+
+    /* Meta pills */
+    const scoreColor = score >= 8 ? '#22c55e' : score >= 6 ? '#eab308' : '#ef4444';
+    document.getElementById('report-meta-pills').innerHTML = `
+      <span class="rmeta-pill">Final Score <strong style="color:${scoreColor}">${score}/10</strong></span>
+      <span class="rmeta-pill">Iterations <strong>${iterations}</strong></span>
+      <span class="rmeta-pill">Saved as <strong>${savedAs}</strong></span>`;
+
+    const container = document.getElementById('report-container');
+    container.style.display = 'block';
+    setTimeout(() => {
+      container.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }, 300);
+  }
+</script>
+</body>
+</html>

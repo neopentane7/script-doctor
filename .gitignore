@@ -1,0 +1,45 @@
+# ──────────────────────────────────────────────────────────────
+#  Script Doctor — .gitignore
+# ──────────────────────────────────────────────────────────────
+
+# ── Python ────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+*.egg
+
+# ── Virtual environments ─────────────────────────────────────
+venv/
+.venv/
+env/
+
+# ── Environment secrets ──────────────────────────────────────
+.env
+
+# ── ChromaDB vector store (regenerated at runtime) ───────────
+db/
+
+# ── Generated output files ───────────────────────────────────
+# Run artifacts are written to runs/ (see RUNS_DIR in main.py). The loose
+# patterns remain for backwards compatibility with pre-existing runs.
+runs/
+output.txt
+output_utf8.txt
+output_*.txt
+report_*.html
+
+# ── IDE / Editor / Tooling ───────────────────────────────────
+.vscode/
+.idea/
+.claude/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# ── Jupyter ──────────────────────────────────────────────────
+.ipynb_checkpoints/
