@@ -242,11 +242,11 @@ DEFAULT_PROMPT = (
 )
 
 
-def run_agents():
+def run_agents(prompt: str = DEFAULT_PROMPT):
     logger.info("Starting Multi-Agent Script Doctor...")
     logger.info("-" * 60)
     final_state, iteration_history, timestamp = run_pipeline(
-        prompt=DEFAULT_PROMPT,
+        prompt=prompt,
         save_files=True,
     )
 
@@ -269,5 +269,29 @@ def run_agents():
     print(final_state["draft"])
 
 
+def _parse_args():
+    import argparse
+    parser = argparse.ArgumentParser(
+        description="Script Doctor — multi-agent screenplay pipeline (CLI).",
+    )
+    group = parser.add_mutually_exclusive_group()
+    group.add_argument(
+        "--prompt", "-p",
+        help="Scene premise to write. Omit to use the built-in default prompt.",
+    )
+    group.add_argument(
+        "--prompt-file", "-f",
+        help="Path to a text file whose contents are used as the scene premise.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    run_agents()
+    args = _parse_args()
+    if args.prompt_file:
+        prompt = Path(args.prompt_file).read_text(encoding="utf-8").strip()
+    elif args.prompt:
+        prompt = args.prompt
+    else:
+        prompt = DEFAULT_PROMPT
+    run_agents(prompt)

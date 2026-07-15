@@ -278,6 +278,18 @@ body{{background:#0a0c12;color:#e2e8f0;font-family:'Inter',sans-serif;min-height
 </div>
 
 <script>
+// Chart.js loads from a CDN; if the report is opened offline it won't be
+// available. Rather than throwing (and leaving blank boxes), show a friendly
+// note in each chart slot and skip rendering. All scores remain readable in
+// the Iteration Breakdown below.
+if (typeof Chart === 'undefined') {{
+  document.querySelectorAll('.chart-wrap').forEach(function(el) {{
+    el.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;'
+      + 'height:100%;min-height:220px;color:#64748b;font-size:.85rem;text-align:center;'
+      + 'padding:1rem;line-height:1.5">📊 Charts need an internet connection to load '
+      + 'Chart.js.<br>The full scores are in the Iteration Breakdown below.</div>';
+  }});
+}} else {{
 const radarData = {{
   labels: {json.dumps(DIMENSION_LABELS)},
   datasets: {json.dumps(radar_datasets)}
@@ -333,6 +345,7 @@ new Chart(document.getElementById('lineChart'), {{
     plugins: {{ legend: {{ labels: {{ color:'#94a3b8', font:{{size:11}}, boxWidth:12 }} }} }}
   }}
 }});
+}}
 </script>
 </body>
 </html>"""

@@ -1,3 +1,12 @@
+import os
+
+# The MiniLM embedding model is cached locally after first download, so the Hub
+# is never needed at runtime. Going offline silences the "unauthenticated
+# requests to the HF Hub" warning and avoids a needless network round-trip.
+# Set these before importing huggingface libraries so they take effect.
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("TOKENIZERS_PARALLELISM", "false")
+
 import shutil
 import hashlib
 import logging
@@ -6,7 +15,6 @@ from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_community.document_loaders import TextLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from pathlib import Path
-import os
 
 logger = logging.getLogger(__name__)
 
